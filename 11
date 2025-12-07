@@ -1,0 +1,52 @@
+param(
+    [string]$Url,
+    [int]$Delka
+)
+
+# Pokud nejsou zadány parametry, vypiš nápovědu a skonči
+if (-not $Url -or -not $Delka) {
+
+Write-Host "Pouziti:"
+Write-Host "  powershell -File ExtractWords.ps1 -Url <adresa> -Delka <pocet_znaku>"
+Write-Host ""
+Write-Host "Priklad:"
+Write-Host "  powershell -File ExtractWords.ps1 -Url `"https://www.example.com`" -Delka 5"
+
+    exit 1
+}
+
+try {
+    # Stažení obsahu stránky
+    $response = Invoke-WebRequest -Uri $Url -UseBasicParsing
+
+    # Získání čistého textu (bez HTML tagů)
+    $htmlContent = $response.Content
+    # odstranění HTML tagů
+    $plainText = $htmlContent -replace "<[^>]+>", " "
+
+    # nahrazení všeho, co není písmeno nebo číslo, mezerou
+    # \p{L} = libovolné písmeno (včetně diakritiky), \p{N} = číslice
+    $plainText = $plainText -replace "[^\p{L}\p{N}]+", " "
+
+    # Rozdělení na slova
+    $words = $plainText -split "\s+"
+
+    # Filtrování podle délky, odstranění prázdných položek, převod na malá písmena
+    $filtered = $words |
+        Where-Object { $_ -and $_.Length -eq $Delka } |
+        ForEach-Object { $_.ToLower() } |
+        Sort-Object -Unique
+
+    # Výpis výsledků
+    if ($filtered.Count -eq 0) {
+        Write-Host "Nebylo nalezeno zadne slovo o delce $Delka znaku na strance $Url."
+    } else {
+            Write-Host "Jedinecna slova o delce $Delka znaku nalezena na strance $Url`n"
+        $filtered
+    }
+}
+catch {
+    Write-Host "Doslo k chybe při zpracovani:"
+    Write-Host $_.Exception.Message
+    exit 1
+}
